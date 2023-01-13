@@ -1,47 +1,51 @@
-import { PrismaClient } from "@prisma/client";
 import { hash, compare } from "bcryptjs";
-import { v4 as uuid } from "uuid";
-
-const prisma = new PrismaClient();
-
-interface User {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-}
-
-interface Token {
-  token: string;
-}
+import { createToken, User, Context } from "../utils";
 
 export const resolvers = {
   Query: {
-    me: async (_parents, data: Token, context) => {
-      const dbToken = await prisma.token.findUnique({
-        where: { token: data.token },
-        include: { user: true },
+    me: async (_parents, args, context: Context) => {
+      const { userId } = context;
+
+      const user = await context.prisma.user.findUnique({
+        where: { id: userId },
       });
 
-      if (!dbToken) return null;
-
-      const { user } = dbToken;
+      if (!user) return null;
 
       return user;
+    },
+
+    users: async (_parents, args, context: Context) => {
+      return await context.prisma.user.findMany();
     },
   },
 
   Mutation: {
-    signUp: async (_parents, user: User, context) => {
-      const hashedPassword = await hash(user.password, 10);
+    signUp: async (_parents, args: User, context: Context) => {
+      const hashedPassword = await hash(args.password, 10);
 
-      return prisma.user.create({
-        data: { ...user, password: hashedPassword },
+      const newUser = await context.prisma.user.create({
+        data: { ...args, password: hashedPassword },
       });
+
+      const token = createToken(newUser.id);
+
+      const userWithToken = await context.prisma.token.create({
+        data: { token: token, user: { connect: { id: newUser.id } } },
+        include: { user: true },
+      });
+      const signUpResponse = {
+        token: userWithToken.token,
+        user: userWithToken.user,
+      };
+
+      return signUpResponse;
     },
 
-    login: async (_parents, { email, password }: User, context) => {
-      const user = await prisma.user.findUnique({ where: { email: email } });
+    login: async (_parents, { email, password }: User, context: Context) => {
+      const user = await context.prisma.user.findUnique({
+        where: { email: email },
+      });
 
       if (!user) return null;
 
@@ -49,9 +53,19 @@ export const resolvers = {
 
       if (!validation) return null;
 
-      return prisma.token.create({
-        data: { token: uuid(), user: { connect: { id: user.id } } },
+      const token = createToken(user.id);
+
+      const userWithToken = await context.prisma.token.create({
+        data: { token: token, user: { connect: { id: user.id } } },
+        include: { user: true },
       });
+
+      const loginResponse = {
+        token: userWithToken.token,
+        user: userWithToken.user,
+      };
+
+      return loginResponse;
     },
   },
 };

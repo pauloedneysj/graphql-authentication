@@ -3,7 +3,7 @@ import { gql } from "apollo-server";
 export const typeDefs = gql`
   scalar ISODate
 
-  type UserResponse {
+  type User {
     id: String
     email: String
     password: String
@@ -13,12 +13,14 @@ export const typeDefs = gql`
     updatedAt: ISODate
   }
 
-  type LoginResponse {
+  type AuthPayload {
     token: String
+    user: User
   }
 
   type Query {
-    me(token: String): UserResponse
+    me: User!
+    users: [User!]
   }
 
   type Mutation {
@@ -27,7 +29,7 @@ export const typeDefs = gql`
       password: String
       firstName: String
       lastName: String
-    ): UserResponse
-    login(email: String, password: String): LoginResponse
+    ): AuthPayload
+    login(email: String, password: String): AuthPayload
   }
 `;
