@@ -18,9 +18,14 @@ export const typeDefs = gql`
     user: User
   }
 
+  input Pagination {
+    limit: Int
+    offset: Int
+  }
+
   type Query {
     me: User!
-    users: [User!]
+    users(pagination: Pagination): [User!]
   }
 
   type Mutation {

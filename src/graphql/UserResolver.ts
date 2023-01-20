@@ -15,8 +15,12 @@ export const resolvers = {
       return user;
     },
 
-    users: async (_parents, args, context: Context) => {
-      return await context.prisma.user.findMany();
+    users: async (_parents, { pagination }, context: Context) => {
+      return await context.prisma.user.findMany({
+        skip: pagination.offset,
+        take: pagination.limit,
+        orderBy: { createdAt: "asc" },
+      });
     },
   },
 
